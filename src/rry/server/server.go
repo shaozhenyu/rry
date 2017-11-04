@@ -22,6 +22,7 @@ func Reg(cmds *cli.Cmds) {
 }
 
 func CmdRun(args []string) {
+
 	dir := "data"
 	sobj, err := NewServer(dir)
 	cli.Check(err)
@@ -33,7 +34,7 @@ func CmdRun(args []string) {
 }
 
 func (p *Server) Gets(path string) (err error) {
-	fmt.Println("gets ", path)
+	fmt.Println("server get :", path)
 	return
 }
 
