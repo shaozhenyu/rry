@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"os"
 
 	"rry/server"
 
@@ -11,6 +12,8 @@ import (
 
 const (
 	RemoteAddress = "127.0.0.1:8080"
+	SzyDir        = ".szy"
+	Sep           = "/"
 )
 
 func Reg(cmds *cli.Cmds) {
@@ -21,7 +24,19 @@ func Reg(cmds *cli.Cmds) {
 }
 
 func CmdInit(args []string) {
-	fmt.Println("init:", args)
+	if len(args) < 1 {
+		fmt.Println("usage: <bin> init path [username]")
+		os.Exit(1)
+	}
+
+	username := "nobody"
+	if len(args) > 1 {
+		username = args[1]
+	}
+
+	pwd, err := os.Getwd()
+	cli.Check(err)
+	InitLocalConfig(pwd, SzyDir, username, args[0])
 }
 
 func CmdSync(args []string) {
