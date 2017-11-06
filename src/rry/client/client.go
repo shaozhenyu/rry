@@ -36,11 +36,36 @@ func CmdInit(args []string) {
 
 	pwd, err := os.Getwd()
 	cli.Check(err)
-	InitLocalConfig(pwd, SzyDir, username, args[0])
+
+	err = InitLocalConfig(pwd, SzyDir, username, args[0])
+	cli.Check(err)
+
+	err = InitRemoteConfig(pwd, SzyDir, args[0])
+	cli.Check(err)
 }
 
 func CmdSync(args []string) {
-	fmt.Println("sync:", args)
+	Sync(args)
+}
+
+func Sync(args []string) {
+	if len(args) > 1 {
+		fmt.Println("usage: <bin> sync filepath")
+		os.Exit(1)
+	}
+
+	pwd, err := os.Getwd()
+	cli.Check(err)
+	if len(args) == 1 {
+		pwd = args[0]
+	}
+
+	node, err := NewNode(pwd, SzyDir)
+	cli.Check(err)
+
+	err = node.Sync(pwd)
+	cli.Check(err)
+
 }
 
 func CmdUpload(args []string) {

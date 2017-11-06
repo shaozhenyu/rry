@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -24,7 +25,22 @@ func upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer lfile.Close()
-	f, err := os.Create(handler.Filename)
+
+	filename := handler.Filename
+
+	// mkdir path
+	if strings.Contains(filename, "/") {
+		lastSep := strings.LastIndex(filename, "/")
+		if lastSep > 0 {
+			err = os.MkdirAll(filename[:lastSep], 0777)
+			if err != nil {
+				http.Error(w, err.Error(), 400)
+				return
+			}
+		}
+	}
+
+	f, err := os.Create(filename)
 	if err != nil {
 		http.Error(w, err.Error(), 404)
 		return
