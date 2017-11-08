@@ -4,17 +4,20 @@ import (
 	"fmt"
 	"sync"
 
+	"rry/share"
+
 	"ember/cli"
 	"ember/http/rpc"
 )
 
 type Server struct {
-	lock sync.Mutex
+	service *share.Service
+	lock    sync.Mutex
 }
 
 type Client struct {
-	Gets func(path string) (err error)               `args:"path" return:"err"`
-	Test func(path string) (value string, err error) `args:"path" return:"value,err"`
+	Gets func(path string) (leaves share.Leaves, err error)         `args:"path" return:"leaves,err"`
+	Put  func(path string, value string, clocks string) (err error) `args:"path,value,clocks"`
 }
 
 func Reg(cmds *cli.Cmds) {
@@ -33,16 +36,25 @@ func CmdRun(args []string) {
 	cli.Check(err)
 }
 
-func (p *Server) Gets(path string) (err error) {
-	fmt.Println("server get :", path)
+func (p *Server) Gets(path string) (leaves share.Leaves, err error) {
+	fmt.Println("gets : ", path)
+	leaves = p.service.GetAll(path)
 	return
 }
 
-func (p *Server) Test(path string) (string, error) {
-	fmt.Println("server test:", path)
-	return path + "11", nil
+func (p *Server) Put(path string, clocks string, value string) (err error) {
+	cs, err := share.NewClocksFromString(clocks)
+	if err != nil {
+		return
+	}
+	err = p.service.Put(path, cs, value)
+	return
 }
 
 func NewServer(path string) (*Server, error) {
-	return &Server{}, nil
+	service, err := share.NewService(path)
+	if err != nil {
+		return nil, err
+	}
+	return &Server{service: service}, nil
 }

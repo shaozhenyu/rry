@@ -23,6 +23,10 @@ func Download(filename string) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != 200 {
+		return errors.New("Download error :" + filename)
+	}
+
 	lfile, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return err

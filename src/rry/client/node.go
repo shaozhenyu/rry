@@ -10,7 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"rry/server"
 	"rry/share"
+
+	"ember/http/rpc"
 )
 
 const MetaPath = "meta"
@@ -18,6 +21,9 @@ const MetaPath = "meta"
 type Node struct {
 	config  *Config
 	service *share.Service
+	client  *server.Client
+	cache   *share.Service
+	rpc     *rpc.Client
 }
 
 func NewNode(path, sync string) (p *Node, err error) {
@@ -37,22 +43,72 @@ func NewNode(path, sync string) (p *Node, err error) {
 		return
 	}
 
+	client := &server.Client{}
+	rpc := rpc.NewClient(config.Remote.Address)
+	err = rpc.Reg(client)
+	if err != nil {
+		return
+	}
+
+	cache, err := share.NewService("")
+	if err != nil {
+		return
+	}
+
 	p = &Node{
 		config:  config,
 		service: service,
+		client:  client,
+		cache:   cache,
+		rpc:     rpc,
 	}
 	return
 }
 
 func (p *Node) Sync(path string) (err error) {
-	fmt.Println("node sync:", path)
 	dpath, abs, err := p.config.paths(path)
 	if err != nil {
 		return
 	}
 	fmt.Println("sync dpath:", dpath, "abs:", abs)
 
+	leaves, err := p.client.Gets(dpath)
+	if err != nil {
+		return
+	}
+	fmt.Println("leaves: ", leaves)
 	done := map[string]bool{}
+
+	for k, v := range leaves {
+		related := k[len(p.config.Local.Path)+1:]
+		fmt.Println("remote leaves :", related, v)
+
+		// TODO just sync path data now
+		if !strings.HasPrefix(related, "data") {
+			done[k] = true
+			return nil
+		}
+
+		var clocks share.Clocks
+		clocks, err = share.NewClocksFromString(v.Clocks)
+		if err != nil {
+			return errors.New("cache.Generating: " + err.Error())
+		}
+		err = p.cache.Put(k, clocks, v.Value)
+		if err != nil {
+			return errors.New("cache.Put: " + err.Error())
+		}
+
+		if done[k] {
+			continue
+		}
+
+		err = p.sync(k)
+		if err != nil {
+			return err
+		}
+		done[k] = true
+	}
 
 	err = filepath.Walk(abs, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -70,10 +126,12 @@ func (p *Node) Sync(path string) (err error) {
 
 		related := dpath[len(p.config.Local.Path)+1 : len(dpath)]
 
+		// filter config path
 		if strings.HasPrefix(related, SzyDir) {
 			return nil
 		}
 
+		// TODO just sync path data now
 		if !strings.HasPrefix(related, "data") {
 			return nil
 		}
@@ -95,24 +153,144 @@ func (p *Node) Sync(path string) (err error) {
 }
 
 func (p *Node) sync(dpath string) (err error) {
-	fmt.Println("file need sync:", dpath)
 	abs := p.config.Path + dpath[len(p.config.Local.Path):len(dpath)]
-	fmt.Println("file abs :", abs)
 	related := dpath[len(p.config.Local.Path)+1 : len(dpath)]
 	fmt.Println("file related:", related)
 
+	rclocks, rvalue := p.cache.Get(dpath)
+	fmt.Println("rclock:", rclocks)
+	fmt.Println("rvalue:", rvalue)
+	var rinfo *share.FileInfo
+	if len(rvalue) != 0 {
+		rinfo, err = share.NewFileInfo(rvalue)
+		if err != nil {
+			return errors.New(rvalue + " parse rvalue: " + err.Error())
+		}
+	}
+
+	lclocks, lvalue := p.service.Get(dpath)
+	fmt.Println("lclock:", lclocks)
+	fmt.Println("lvalue:", lvalue)
+	var linfo *share.FileInfo
+	if len(lvalue) != 0 {
+		linfo, err = share.NewFileInfo(lvalue)
+		if err != nil {
+			return errors.New(lvalue + " parse lvalue: " + err.Error())
+		}
+	}
+
+	status := rclocks.Compare(lclocks)
+	ss := "local: " + lclocks.Sig(":") + ", remote: " + rclocks.Sig(":")
+	fmt.Println("status : ", status, "ss: ", ss)
+	if status == share.Smaller {
+		return errors.New(dpath + " local version greater than remote version, unknown error. " + ss)
+	}
+	if status == share.Conflicted {
+		return errors.New(dpath + " conflicted from multiple source. " + ss)
+	}
+
 	finfo, err := p.info(abs)
 	if err != nil {
+		return errors.New("node.GetInfo: " + err.Error())
+	}
+
+	if status == share.Greater {
+		fmt.Println("remote > local:", ss)
+		if !finfo.Equals(lvalue) && !finfo.Deleted {
+			if finfo.Equals(rvalue) {
+				fmt.Println("file no changed, updating db(local)")
+				err = p.service.Put(dpath, rclocks, rvalue)
+				if err != nil {
+					return errors.New("local.Put: " + err.Error())
+				}
+			} else {
+				fmt.Println("local also edited, confilicted")
+				return errors.New(dpath + " conflicted. " + ss)
+			}
+		} else {
+			if rinfo.Deleted {
+				fmt.Println("remote removed, removing local file")
+				err = os.Remove(abs)
+				if err != nil {
+					if os.IsNotExist(err) {
+						fmt.Println("local file not exists, skip")
+						err = nil
+					} else {
+						return errors.New("os.Remove: " + err.Error())
+					}
+				}
+			} else {
+				fmt.Println("download file : ", related)
+				// tmp := abs + ".downloading"
+				// err = os.MkdirAll(filepath.Dir(tmp), 0777)
+				// if err != nil {
+				// 	return errors.New("os.Mkdir: " + err.Error())
+				// }
+				// err = Download(tmp)
+				// if err != nil {
+				// 	return errors.New("download: " + err.Error())
+				// }
+				// err = os.Rename(tmp, abs)
+				// if err != nil {
+				// 	return errors.New("os.Rename: " + err.Error())
+				// }
+				err = os.MkdirAll(filepath.Dir(abs), 0777)
+				if err != nil {
+					return errors.New("os.Mkdir: " + err.Error())
+				}
+				err = Download(related)
+				if err != nil {
+					return errors.New("download: " + err.Error())
+				}
+			}
+
+			err = p.service.Put(dpath, rclocks, rvalue)
+			if err != nil {
+				return errors.New("local.Put: " + err.Error())
+			}
+		}
 		return
 	}
 
-	clocks := share.NewClocks()
+	if status != share.Equal {
+		panic("gg")
+	}
+
+	if finfo.Deleted && (linfo == nil || linfo.Deleted) || finfo.Equals(lvalue) {
+		fmt.Println("nothing happen")
+		return
+	}
+
+	if !finfo.Deleted {
+		err = Upload(related)
+		if err != nil {
+			return errors.New("upload: " + err.Error())
+		}
+	}
+
+	clocks := rclocks.Copy()
+	clocks.Absorb(lclocks)
 	clocks.Edit(p.config.Local.Hid)
 	value, err := finfo.ToString()
+	fmt.Println(value, clocks, dpath)
 	if err != nil {
 		return errors.New("finfo.ToString: " + err.Error())
 	}
-	p.service.Save(dpath, clocks.ToString(), value)
+
+	err = p.client.Put(dpath, clocks.ToString(), value)
+	if err != nil {
+		return errors.New("remote.Put: " + err.Error())
+	}
+
+	err = p.cache.Put(dpath, clocks, value)
+	if err != nil {
+		return errors.New("cache.Put: " + err.Error())
+	}
+
+	err = p.service.Put(dpath, clocks, value)
+	if err != nil {
+		return errors.New("local.Put: " + err.Error())
+	}
 
 	return
 }
@@ -120,6 +298,7 @@ func (p *Node) sync(dpath string) (err error) {
 func (p *Node) info(abs string) (info share.FileInfo, err error) {
 	finfo, err := os.Stat(abs)
 	if os.IsNotExist(err) {
+		err = nil
 		info = share.FileInfo{true, ""}
 		return
 	} else if err != nil {
@@ -140,7 +319,7 @@ func (p *Node) info(abs string) (info share.FileInfo, err error) {
 		return
 	}
 
-	info = share.FileInfo{true, base64.StdEncoding.EncodeToString(sha.Sum(nil))}
+	info = share.FileInfo{false, base64.StdEncoding.EncodeToString(sha.Sum(nil))}
 	return
 
 }

@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"rry/server"
-
 	"ember/cli"
-	"ember/http/rpc"
 )
 
 const (
@@ -71,15 +68,7 @@ func Sync(args []string) {
 func CmdUpload(args []string) {
 	fmt.Println("upload:", args)
 
-	client := &server.Client{}
-	rpc := rpc.NewClient(RemoteAddress)
-	err := rpc.Reg(client)
-	cli.Check(err)
-
-	err = client.Gets("aa")
-	cli.Check(err)
-
-	err = Upload("data/test")
+	err := Upload("data/test")
 	cli.Check(err)
 }
 
