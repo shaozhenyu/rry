@@ -14,8 +14,8 @@ var (
 	DownloadAddress = "http://127.0.0.1:8081/download/"
 )
 
-func Download(filename string) error {
-	url := DownloadAddress + filename
+func Download(lfilename string, rfilename string) error {
+	url := DownloadAddress + rfilename
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -24,10 +24,10 @@ func Download(filename string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return errors.New("Download error :" + filename)
+		return errors.New("Download error :" + rfilename)
 	}
 
-	lfile, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0644)
+	lfile, err := os.OpenFile(lfilename, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return err
 	}

@@ -75,6 +75,6 @@ func CmdUpload(args []string) {
 func CmdDownload(args []string) {
 	fmt.Println("download:", args)
 
-	err := Download("data/test")
+	err := Download("data/test", "data/test")
 	cli.Check(err)
 }

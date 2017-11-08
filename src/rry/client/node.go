@@ -70,18 +70,15 @@ func (p *Node) Sync(path string) (err error) {
 	if err != nil {
 		return
 	}
-	fmt.Println("sync dpath:", dpath, "abs:", abs)
 
 	leaves, err := p.client.Gets(dpath)
 	if err != nil {
 		return
 	}
-	fmt.Println("leaves: ", leaves)
 	done := map[string]bool{}
 
 	for k, v := range leaves {
 		related := k[len(p.config.Local.Path)+1:]
-		fmt.Println("remote leaves :", related, v)
 
 		// TODO just sync path data now
 		if !strings.HasPrefix(related, "data") {
@@ -155,11 +152,8 @@ func (p *Node) Sync(path string) (err error) {
 func (p *Node) sync(dpath string) (err error) {
 	abs := p.config.Path + dpath[len(p.config.Local.Path):len(dpath)]
 	related := dpath[len(p.config.Local.Path)+1 : len(dpath)]
-	fmt.Println("file related:", related)
 
 	rclocks, rvalue := p.cache.Get(dpath)
-	fmt.Println("rclock:", rclocks)
-	fmt.Println("rvalue:", rvalue)
 	var rinfo *share.FileInfo
 	if len(rvalue) != 0 {
 		rinfo, err = share.NewFileInfo(rvalue)
@@ -169,8 +163,6 @@ func (p *Node) sync(dpath string) (err error) {
 	}
 
 	lclocks, lvalue := p.service.Get(dpath)
-	fmt.Println("lclock:", lclocks)
-	fmt.Println("lvalue:", lvalue)
 	var linfo *share.FileInfo
 	if len(lvalue) != 0 {
 		linfo, err = share.NewFileInfo(lvalue)
@@ -181,7 +173,6 @@ func (p *Node) sync(dpath string) (err error) {
 
 	status := rclocks.Compare(lclocks)
 	ss := "local: " + lclocks.Sig(":") + ", remote: " + rclocks.Sig(":")
-	fmt.Println("status : ", status, "ss: ", ss)
 	if status == share.Smaller {
 		return errors.New(dpath + " local version greater than remote version, unknown error. " + ss)
 	}
@@ -220,27 +211,19 @@ func (p *Node) sync(dpath string) (err error) {
 					}
 				}
 			} else {
-				fmt.Println("download file : ", related)
-				// tmp := abs + ".downloading"
-				// err = os.MkdirAll(filepath.Dir(tmp), 0777)
-				// if err != nil {
-				// 	return errors.New("os.Mkdir: " + err.Error())
-				// }
-				// err = Download(tmp)
-				// if err != nil {
-				// 	return errors.New("download: " + err.Error())
-				// }
-				// err = os.Rename(tmp, abs)
-				// if err != nil {
-				// 	return errors.New("os.Rename: " + err.Error())
-				// }
-				err = os.MkdirAll(filepath.Dir(abs), 0777)
+				fmt.Println("download file : ", abs)
+				tmp := abs + ".downloading"
+				err = os.MkdirAll(filepath.Dir(tmp), 0777)
 				if err != nil {
 					return errors.New("os.Mkdir: " + err.Error())
 				}
-				err = Download(related)
+				err = Download(tmp, related)
 				if err != nil {
 					return errors.New("download: " + err.Error())
+				}
+				err = os.Rename(tmp, abs)
+				if err != nil {
+					return errors.New("os.Rename: " + err.Error())
 				}
 			}
 
