@@ -66,7 +66,6 @@ func NewConfig(path, sync string) (config *Config, err error) {
 }
 
 func InitLocalConfig(path, sync, user, dpath string) error {
-	fmt.Println(path, sync, user, dpath)
 	if strings.HasPrefix(dpath, "/") || strings.HasPrefix(dpath, "\\") {
 		return errors.New("path can not start with '/' or '\\': " + dpath)
 	}

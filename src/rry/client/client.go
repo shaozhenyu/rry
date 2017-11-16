@@ -9,7 +9,7 @@ import (
 
 const (
 	RemoteAddress = "127.0.0.1:8080"
-	SzyDir        = ".szy"
+	ConfigDir     = ".rry"
 	Sep           = "/"
 )
 
@@ -34,11 +34,13 @@ func CmdInit(args []string) {
 	pwd, err := os.Getwd()
 	cli.Check(err)
 
-	err = InitLocalConfig(pwd, SzyDir, username, args[0])
+	err = InitLocalConfig(pwd, ConfigDir, username, args[0])
 	cli.Check(err)
 
-	err = InitRemoteConfig(pwd, SzyDir, args[0])
+	err = InitRemoteConfig(pwd, ConfigDir, args[0])
 	cli.Check(err)
+
+	fmt.Printf("Init %s ok!\n", args[0])
 }
 
 func CmdSync(args []string) {
@@ -57,7 +59,7 @@ func Sync(args []string) {
 		pwd = args[0]
 	}
 
-	node, err := NewNode(pwd, SzyDir)
+	node, err := NewNode(pwd, ConfigDir)
 	cli.Check(err)
 
 	err = node.Sync(pwd)

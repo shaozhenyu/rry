@@ -124,7 +124,7 @@ func (p *Node) Sync(path string) (err error) {
 		related := dpath[len(p.config.Local.Path)+1 : len(dpath)]
 
 		// filter config path
-		if strings.HasPrefix(related, SzyDir) {
+		if strings.HasPrefix(related, ConfigDir) {
 			return nil
 		}
 
@@ -239,7 +239,7 @@ func (p *Node) sync(dpath string) (err error) {
 	}
 
 	if finfo.Deleted && (linfo == nil || linfo.Deleted) || finfo.Equals(lvalue) {
-		fmt.Println(abs, " nothing happen")
+		//fmt.Println(abs, " nothing happen")
 		return
 	}
 
