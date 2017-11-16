@@ -151,7 +151,7 @@ func (p *Node) Sync(path string) (err error) {
 
 func (p *Node) sync(dpath string) (err error) {
 	abs := p.config.Path + dpath[len(p.config.Local.Path):len(dpath)]
-	related := dpath[len(p.config.Local.Path)+1 : len(dpath)]
+	//related := dpath[len(p.config.Local.Path)+1 : len(dpath)]
 
 	rclocks, rvalue := p.cache.Get(dpath)
 	var rinfo *share.FileInfo
@@ -211,13 +211,12 @@ func (p *Node) sync(dpath string) (err error) {
 					}
 				}
 			} else {
-				fmt.Println("download file : ", abs)
 				tmp := abs + ".downloading"
 				err = os.MkdirAll(filepath.Dir(tmp), 0777)
 				if err != nil {
 					return errors.New("os.Mkdir: " + err.Error())
 				}
-				err = Download(tmp, related)
+				err = Download(tmp, dpath)
 				if err != nil {
 					return errors.New("download: " + err.Error())
 				}
@@ -240,12 +239,12 @@ func (p *Node) sync(dpath string) (err error) {
 	}
 
 	if finfo.Deleted && (linfo == nil || linfo.Deleted) || finfo.Equals(lvalue) {
-		fmt.Println("nothing happen")
+		fmt.Println(abs, " nothing happen")
 		return
 	}
 
 	if !finfo.Deleted {
-		err = Upload(related)
+		err = Upload(abs, dpath)
 		if err != nil {
 			return errors.New("upload: " + err.Error())
 		}
@@ -255,7 +254,6 @@ func (p *Node) sync(dpath string) (err error) {
 	clocks.Absorb(lclocks)
 	clocks.Edit(p.config.Local.Hid)
 	value, err := finfo.ToString()
-	fmt.Println(value, clocks, dpath)
 	if err != nil {
 		return errors.New("finfo.ToString: " + err.Error())
 	}

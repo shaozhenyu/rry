@@ -68,7 +68,7 @@ func Sync(args []string) {
 func CmdUpload(args []string) {
 	fmt.Println("upload:", args)
 
-	err := Upload("data/test")
+	err := Upload("data/test", "data/test")
 	cli.Check(err)
 }
 

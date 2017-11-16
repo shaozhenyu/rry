@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -15,6 +16,7 @@ var (
 )
 
 func Download(lfilename string, rfilename string) error {
+	fmt.Printf("Download remote %s -> local %s\n", rfilename, lfilename)
 	url := DownloadAddress + rfilename
 
 	resp, err := http.Get(url)
@@ -39,16 +41,17 @@ func Download(lfilename string, rfilename string) error {
 	return nil
 }
 
-func Upload(filename string) error {
+func Upload(lfilename string, rfilename string) error {
+	fmt.Printf("Upload local %s -> remote %s\n", lfilename, rfilename)
 	buf := &bytes.Buffer{}
 	writer := multipart.NewWriter(buf)
 
-	fWriter, err := writer.CreateFormFile("uploadfile", filename)
+	fWriter, err := writer.CreateFormFile("uploadfile", rfilename)
 	if err != nil {
 		return err
 	}
 
-	lfile, err := os.Open(filename)
+	lfile, err := os.Open(lfilename)
 	if err != nil {
 		return err
 	}
@@ -71,7 +74,7 @@ func Upload(filename string) error {
 	}
 
 	if resp.StatusCode != 200 {
-		return errors.New("http.post file error:" + filename)
+		return errors.New("http.post file error:" + lfilename)
 	}
 
 	return nil

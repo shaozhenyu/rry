@@ -72,7 +72,6 @@ func (p *Service) dfile(dir string) string {
 }
 
 func (p *Service) load(dir string) (err error) {
-	fmt.Println("load dir:", dir)
 	os.MkdirAll(dir, 0777)
 
 	p.file, err = os.OpenFile(p.dfile(dir), os.O_CREATE|os.O_RDWR|os.O_SYNC, 0644)

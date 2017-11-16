@@ -37,7 +37,6 @@ func CmdRun(args []string) {
 }
 
 func (p *Server) Gets(path string) (leaves share.Leaves, err error) {
-	fmt.Println("gets : ", path)
 	leaves = p.service.GetAll(path)
 	return
 }
