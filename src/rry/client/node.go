@@ -38,6 +38,7 @@ func NewNode(path, sync string) (p *Node, err error) {
 		return
 	}
 
+	// cache local file info
 	service, err := share.NewService(meta)
 	if err != nil {
 		return
@@ -50,6 +51,7 @@ func NewNode(path, sync string) (p *Node, err error) {
 		return
 	}
 
+	// cache remote file info
 	cache, err := share.NewService("")
 	if err != nil {
 		return
